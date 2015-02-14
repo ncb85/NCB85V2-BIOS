@@ -42,10 +42,12 @@ CCPLength	equ	0800h		; CCP len
 BDOSLength	equ	0E00h		; BDOS len
 BIOSLengthMax	equ	1000h		; BIOS (Max) len
 CcpBdosSec	equ	(CCPLength+BDOSLength)/128 ; CCP + BDOS len in sectors
-; be sure to include correct cp/m at the end of file
-;BaseBIOS	equ	0EE00h		; BIOS address 
+; be sure to include (or not include) correct cp/m image at the end of file
+            if (CPMSource <> "ROM")
+BaseBIOS	equ	0EE00h		; BIOS address 
+            else
 BaseBIOS	equ	0F500h		; BIOS address (with CPM bundled in 8k ROM)
-
+            endif
 BaseCCP		equ	BaseBIOS-(CCPLength+BDOSLength) ; CCP address
 BaseBDOS	equ	BaseCCP+CCPLength+6 ; BDOSu address
 
@@ -162,7 +164,7 @@ DPH4:		dw	0,0		; no translation table
 		dw	CSV4,ALV4	; checksum zone adr., aloc bit map adr.
 DPH5:		dw	0,0		; no translation table
 		dw	0,0
-		dw	DIRBUF,DPB4   ; buff.adr., disk param adr.
+		dw	DIRBUF,DPB4     ; buff.adr., disk param adr.
 		dw	CSV5,ALV5	; checksum zone adr., aloc bit map adr.
 
 ; PMD32SD
@@ -240,8 +242,8 @@ Signature:	db	ESC,"[0m"	; reset terminal attributes
 		db	CPMVer/10+'0','.',CPMVer#10+'0'
 		db	", BIOS v"
 		db	BIOSVer/10+'0','.',BIOSVer#10+'0'
-		;db	CR,LF
-		;db	"RomBor, Archeocomp 07/2014"
+		db	CR,LF
+		db	"RomBor, Archeocomp 07/2014"
 TCRLF:		db	CR,LF,0
 
                 if NumPmd32>0
@@ -322,26 +324,19 @@ WBoot2:		xra a
 
             if Floppy==360
                 call set_drv_type0      ;5.25" 360kB, 18x256byte sectors/track
-                elseif Floppy==144
+            elseif Floppy==144
                 call set_drv_type3      ;3.5" 1.44MB, 32x256byte sectors/track
             endif
                 call fd_init
                 call long_delay
                 
-                mvi a,FDC_RECALIB       ;recalibrate drives
-                call fd_exec_cmd
-                mvi a,1
-                sta     drive_nr        ;drive B:
-                mvi a,FDC_RECALIB
-                call fd_exec_cmd        
-
                 jnc .f1
                 lxi     h,ErrBoot       ;print boot error
                 call	Print0
                 hlt
 .f1
-            if CPMSource == "ROM"   ;load CPM from ROM
-		mvi	a,XROM+1Fh	;connect ROM tu bus and disable interrupts
+            if CPMSource == "ROM"       ;load CPM from ROM
+		mvi	a,XROM+1Fh	;connect ROM to bus and disable interrupts
 		sim
                 lxi h,CPMBIN
                 lxi d,BaseCCP
@@ -395,8 +390,6 @@ WBootEnd:	lxi	h,Buffer	; DMA address
 		call	CopyBlock
 		jmp	BaseCCP		; jump to CCP
             elseif
-                ;lxi     h,ErrBoot       ;print boot error
-                ;call	Print0
 		jmp     BaseCCP+3	; jump to CCP with empty edit buffer
             endif
                 ;
@@ -757,15 +750,15 @@ HardwareInit:
 PioInit:	mvi	a,PIO_CMD
 		out	PIO_CWR
             endif
-		;ret
-uart_init_38400:
-                mvi a, 06h              ; no FIFO
+		;
+uart_init_16552:
+                mvi a, 0C7h              ;06-no FIFO, 07-enable FIFO, bits 6,7 - fifo trigger
                 out FIFO_CTRL_REG_1
                 out FIFO_CTRL_REG_2
                 mvi a, 83h
                 out LINE_CTRL_REG_1
                 out LINE_CTRL_REG_2
-                mvi a, 01h
+                mvi a, 02h              ;8-4800,4-9600,2-19200,1-38400
                 out DIVISOR_LOW_BYTE_1
                 out DIVISOR_LOW_BYTE_2
                 xra a
@@ -889,7 +882,11 @@ XBIOSLength:	equ	$ - BaseBIOS
 ;------------------------------------------------------------------------------
 CPMBIN:                
                 binclude "../CPM/cpmDF00.bin"
-                ;message "../CPM/cpm\{BaseCCP}.bin"
+            if (CPMSource <> "ROM")
+                message "DO NOT INCLUDE CP/M IMAGE"
+            else
+                message "../CPM/cpm\{BaseCCP}.bin"
+            endif
     
 		end
 ;------------------------------------------------------------------------------
