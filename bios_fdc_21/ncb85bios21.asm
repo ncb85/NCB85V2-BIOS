@@ -195,7 +195,7 @@ DPB:            dw 64                   ; SPT - logical sectors per track
 DPB4:           dw  72                  ; SPT - logical sectors per track
                 db  4                   ; BSH - posun bloku
                 db  15                  ; BLM - block mask
-                db  0                   ; EXM - ext.mask
+                db  1                   ; EXM - ext.mask, 32kB per extent
                 dw  174                 ; DSM - capacity-1
                 dw  63                  ; DRM - dir size-1
                 db  128                 ; AL0 - dir allocation mask
@@ -207,7 +207,7 @@ DPB4:           dw  72                  ; SPT - logical sectors per track
 DPB4:           dw  72                  ; SPT - logical sectors per track
                 db  4                   ; BSH - posun bloku
                 db  15                  ; BLM - block mask
-                db  0                   ; EXM - ext.mask
+                db  1                   ; EXM - ext.mask, 32kB per extent
                 dw  179                 ; DSM - capacity-1 - full 360kB
                 dw  63                  ; DRM - dir size-1
                 db  128                 ; AL0 - dir allocation mask
