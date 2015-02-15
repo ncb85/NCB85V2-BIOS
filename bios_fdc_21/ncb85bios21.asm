@@ -1,6 +1,7 @@
 ;------------------------------------------------------------------------------
 ; NCB85 CP/M BIOS
 ; Roman Borik/RM-Team 2/2012, 2/2013, 1/2014
+; archeocomp 2014-2015
 ; NCB85 is a SBC based on 8085 and 64k SRAM. There is also 8kB ROM from 0000H
 ; that can be shadowed by outputting 1 to SOD pin of 8085
 ; BIOS is in the ROM and moved to target RAM after reset. CP/M is loaded from diskette drive
@@ -146,7 +147,7 @@ WBOOTE:		jmp	WBOOT		; Warm Boot
 		jmp	ReadCheckCrc	; receive and check CRC
             endif
 ;------------------------------------------------------------------------------
-; Zahlavie diskovych parametrov
+; Disk parameters
 DPH:
             if NumPmd32>0
 DPH0:		dw	0,0		; no translation table
