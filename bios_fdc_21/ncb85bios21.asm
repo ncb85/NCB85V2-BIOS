@@ -260,6 +260,12 @@ Signature:	db	ESC,"[0m"	; reset terminal attributes
 		db	CPMVer/10+'0','.',CPMVer#10+'0'
 		db	", BIOS v"
 		db	BIOSVer/10+'0','.',BIOSVer#10+'0'
+		db	", ",BaseBIOS/4096+'A'-10,(BaseBIOS#4096)/256+'0',"00-FFFF"
+            if (Floppy==360)
+		db	", 2x 360kB 5.25\""
+            elseif (Floppy==144)
+		db	", 2x 1.44MB 3.5\""
+            endif
 		db	CR,LF
 		db	"RomBor, Archeocomp 07/2014"
 TCRLF:		db	CR,LF,0
