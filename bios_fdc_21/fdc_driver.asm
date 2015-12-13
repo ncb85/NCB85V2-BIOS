@@ -11,7 +11,7 @@ FDC_WRITE       equ 3
                 ; driver constants
 READ_RETRY      equ 3                   ;when read sector fails, retry it n times
 RST65_ADDR      equ 0034h               ;6.5 interrupt vector
-MOTOR_TIMEOUT   equ 10                  ;10s motor timeout
+MOTOR_TIMEOUT   equ 4                   ;seconds motor timeout
 
 FDC_BASE        equ 50h
 REG_DOR         equ FDC_BASE+02h        ;digital output register bits (MTR3 MTR2 MTR1 MTR0 DMAEN RESET DRIVE_SEL_1 DRIVE_SEL_0)
