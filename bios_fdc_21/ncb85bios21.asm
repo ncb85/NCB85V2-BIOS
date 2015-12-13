@@ -30,10 +30,10 @@ CPMSource       equ     "ROM"           ; when defined - CP/M in ROM, otherwise
 FloppySpeed     equ     "FAST"          ;for TEAC drives
 ;FloppySpeed     equ     "MEDIUM"        ;slower drives MITSUMI?
 ; drive capacity
-Floppy          equ     360             ; drive type - 360kB/5.25"
+;Floppy          equ     360             ; drive type - 360kB/5.25"
 ;Floppy          equ     720             ; drive type - 720kB/5.25"
 ;Floppy          equ     120             ; drive type - 1.2MB/5.25"
-;Floppy          equ     144             ; drive type - 1.44MB/3.5"
+Floppy          equ     144             ; drive type - 1.44MB/3.5"
 ; drives used
 NumPmd32        equ     0               ; number of PMD32 drives
 NumFlps         equ     2               ; number of floppy drives
@@ -45,13 +45,18 @@ BIOSLengthMax	equ	1000h		; BIOS (Max) len
 CcpBdosSec	equ	(CCPLength+BDOSLength)/128 ; CCP + BDOS len in sectors
 ; be sure to include (or not include) correct cp/m image at the end of file
             if (CPMSource <> "ROM")
-BaseBIOS	equ	0EE00h		; BIOS address 
+BaseBIOS	equ	0EE00h		; BIOS address (with PMD32 driver, debug routines..)
             else
-BaseBIOS	equ	0F500h		; BIOS address (with CPM bundled in 8k ROM)
+                if (Floppy == 360)
+BaseBIOS	equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x360
+                elseif (Floppy==144) 
+BaseBIOS	equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44
+                endif
             endif
 BaseCCP		equ	BaseBIOS-(CCPLength+BDOSLength) ; CCP address
-BaseBDOS	equ	BaseCCP+CCPLength+6 ; BDOSu address
-
+BaseBDOS	equ	BaseCCP+CCPLength+6 ; BDOS address
+                message "BIOS begins at \{BaseBIOS}"
+                message "CCP begins at \{BaseCCP}"
 IOByte		equ	0003h		; IO byte (not used)
 CurrentDisk	equ	0004h		; default disk
 Buffer		equ	0080h		; default DMA address
@@ -217,13 +222,13 @@ DPB4:           dw  72                  ; SPT - logical sectors per track
                 dw  0                   ; OFF - system tracks - no system track
             endif
 
-            if Floppy==144
 ; Diskette 3,5" HD
 ; 3.5" / 1.44MB(DOS) / 1.28MB(CP/M)
 ; 80 tracks(two side), 32 (256 byte) sectors per track/side, 5120 sectors totally
 ; 632 allocation 2kB blocks (first track reserved for system)
 ; 256 dir size (4x16x4) - dir is saved in 4 allocation blocks
 ; 1 system track
+            if (Floppy==144) && (CPMSource <> "ROM")
 DPB4:           dw 128                  ; SPT - logical sectors per track
                 db 4                    ; BSH - block shift
                 db 15                   ; BLM - block mask
@@ -234,6 +239,18 @@ DPB4:           dw 128                  ; SPT - logical sectors per track
                 db 0                    ; AL1
                 dw 64                   ; CKS - checksum array size
                 dw 1                    ; OFF - system tracks 
+            endif
+            if (Floppy==144) && (CPMSource == "ROM")
+DPB4:           dw 128                  ; SPT - logical sectors per track
+                db 4                    ; BSH - block shift
+                db 15                   ; BLM - block mask
+                db 0                    ; EXM - ext.mask
+                dw 639                  ; DSM - capacity-1
+                dw 255                  ; DRM - dir size-1
+                db 240                  ; AL0 - dir allocation mask
+                db 0                    ; AL1
+                dw 64                   ; CKS - checksum array size
+                dw 0                    ; OFF - system tracks 
             endif
 ;------------------------------------------------------------------------------
 Signature:	db	ESC,"[0m"	; reset terminal attributes
@@ -826,35 +843,6 @@ Stack		equ	$
 OldHL:		ds	2		; backup HL in interrupt
 UsartByte	ds	1		; received byte from USART
 
-DIRBUF:		ds	128		; dir buffer
-            if NumPmd32>0
-ALV0:		ds	128		; disk A: allocation vector
-CSV0:		ds	64		; disk A: directory checksum
-ALV1:		ds	128		; disk B: allocation vector
-CSV1:		ds	64		; disk B: directory checksum
-            endif
-;ALV2:		ds	128		; disk C: allocation vector
-;CSV2:		ds	64		; disk C: directory checksum
-;ALV3:		ds	128		; disk D: allocation vector
-;CSV3:		ds	64		; disk D: directory checksum
-
-            if (Floppy==360) && (CPMSource <> "ROM")
-ALV4:		ds	22		; disk E: allocation vector
-CSV4:		ds	16		; disk E: directory checksum
-ALV5:		ds	22		; disk F: allocation vector
-CSV5:		ds	16		; disk F: directory checksum
-            elseif (Floppy==360) && (CPMSource == "ROM")
-ALV4:		ds	23		; disk E: allocation vector
-CSV4:		ds	16		; disk E: directory checksum
-ALV5:		ds	23		; disk F: allocation vector
-CSV5:		ds	16		; disk F: directory checksum
-            elseif Floppy==144
-ALV4:		ds	80		; disk E: allocation vector
-CSV4:		ds	64		; disk E: directory checksum
-ALV5:		ds	80		; disk F: allocation vector
-CSV5:		ds	64		; disk F: directory checksum
-            endif
-
 ;------------------------------------------------------------------------------
 ; choose one of the implementations of serial routinnes
                 ; 8251 uart pulling mode, no special char decode
@@ -872,21 +860,70 @@ CSV5:		ds	64		; disk F: directory checksum
 ;------------------------------------------------------------------------------
                 include "blocking_dri.asm"
 ;------------------------------------------------------------------------------
+                ; BIOS data areas
+            if NumPmd32>0
+ALV0:		ds	128		; disk A: allocation vector
+CSV0:		ds	64		; disk A: directory checksum
+ALV1:		ds	128		; disk B: allocation vector
+CSV1:		ds	64		; disk B: directory checksum
+            endif
+                    ; for EPROM located CCP/BDOS we need to save space
+                    ; buffers are not allocated so that BIOS+CCP/BDOS fits in 8k
+        if (CPMSource == "ROM")         ; saving rom space
+HSTBUF:                                 ; used by DRI blocking algorithm
+DIRBUF          equ     HSTBUF + HSTSIZ ; not allocated, only defined
+            if (Floppy==360)
+;ALV4:		ds	23		; disk E: allocation vector
+;CSV4:		ds	16		; disk E: directory checksum
+;ALV5:		ds	23		; disk F: allocation vector
+;CSV5:		ds	16		; disk F: directory checksum
+ALV4            equ     DIRBUF + 128    ; not allocated, only defined
+CSV4            equ     ALV4 + 23       ; not allocated, only defined
+ALV5            equ     CSV4 + 16       ; not allocated, only defined
+CSV5            equ     ALV5 + 23       ; not allocated, only defined
+                message "END ADDRESS : \{CSV5+16}"    ;16 bytes for CSV5
+            elseif (Floppy==144)
+;ALV4:		ds	81		; disk E: allocation vector
+;CSV4:		ds	64		; disk E: directory checksum
+;ALV5:		ds	81		; disk F: allocation vector
+;CSV5:		ds	64		; disk F: directory checksum
+ALV4            equ     DIRBUF + 128    ; not allocated, only defined
+CSV4            equ     ALV4 + 81       ; not allocated, only defined
+ALV5            equ     CSV4 + 64       ; not allocated, only defined
+CSV5            equ     ALV5 + 81       ; not allocated, only defined
+                message "END ADDRESS : \{CSV5+81}"    ;81 bytes for CSV5
+            endif
+        else        ; CCP/BDOS loaded from first track, buffers allocated
+DIRBUF:		ds	128		; dir buffer
+            if (Floppy==360)
+ALV4:		ds	22		; disk E: allocation vector
+CSV4:		ds	16		; disk E: directory checksum
+ALV5:		ds	22		; disk F: allocation vector
+CSV5:		ds	16		; disk F: directory checksum
+            elseif (Floppy==144)
+ALV4:		ds	80		; disk E: allocation vector
+CSV4:		ds	64		; disk E: directory checksum
+ALV5:		ds	80		; disk F: allocation vector
+CSV5:		ds	64		; disk F: directory checksum
+            endif
+                message "END ADDRESS : \{$}"    ;
+        endif       ; CPMSource
+
 XBIOSLength:	equ	$ - BaseBIOS
 
 		if	XBIOSLength > BIOSLengthMax
 		  warning "\aBIOS is too long"
 		endif
-                message "END ADDRESS : \{$+256}"    ;256 bytes for HSTBUF
 ;------------------------------------------------------------------------------
 		dephase
 ;------------------------------------------------------------------------------
 CPMBIN:                
-                binclude "../CPM/cpmDF00.bin"
             if (CPMSource <> "ROM")
                 message "DO NOT INCLUDE CP/M IMAGE"
             else
-                message "../CPM/cpm\{BaseCCP}.bin"
+                binclude "../CPM/cpmDE00.bin"
+                message "../CPM/cpm\{BaseCCP}.bin DOUBLE CHECK binclude file!!!"
+                message "AND FIX!!! binclude(d) CPM image if NECESSARY!!!"
             endif
     
 		end

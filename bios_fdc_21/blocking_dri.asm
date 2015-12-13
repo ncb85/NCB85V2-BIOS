@@ -434,7 +434,8 @@ WRTYPE:	DS	1		;WRITE OPERATION
 ;DMAADR:        DS2             ;LAST DMA
 dbuffer:
             if CPMSource == "ROM" ;load CPM from ROM
-HSTBUF:                         ;CP/M would not fit within 8k boundary
+;HSTBUF:                        ; CP/M and BIOS would not fit within NCB85's EPROM 8k boundary
+                                ; therefore this label is only defined in bios file
             else
 HSTBUF:	DS	HSTSIZ		;HOST BUFFER
             endif
