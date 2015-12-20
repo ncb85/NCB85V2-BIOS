@@ -1,0 +1,163 @@
+1. format floppy
+fdc.com
+i,n
+format (interleave 4-at 8MHz or 5)
+read disk
+
+
+
+2. transfer system
+A>type cpm22.hex
+
+D800-EDFF
+
+we move it to (7000-85FF)
+
+
+A>ddt
+DDT VERS 2.2
+-h7000,d800
+4800 9800
+-icpm22.hex
+-r9800
+NEXT  PC
+8600 0000
+-d7000
+7000 C3 5C DB C3 58 DB 7F 00 43 6F 70 79 72 69 67 68 .\..X...Copyrigh
+7010 74 20 31 39 37 39 20 28 63 29 20 62 79 20 44 69 t 1979 (c) by Di
+7020 67 69 74 61 6C 20 52 65 73 65 61 72 63 68 20 20 gital Research
+
+
+A>b:getsys
+Getsys/putsys program
+BIOS address: F600, BDOS address: E806
+high byte F6
+BIOS length in 0100H big sectors10
+Press 0 for 5.25", double density, 40 tracks, (360k)
+Press 1 for 5.25", double density, 80 tracks, (720k)
+Press 2 for 5.25", high density, 80 tracks, (1.2M)
+Press 3 for 3.5", high density, 80 tracks, (1.44M)
+3
+Menu:
+e. exit, r. read system track, w. write system track
+Your choice?
+w
+Writing system track
+Begin address:
+7000
+End address:
+8600
+Target BIOS  address:
+D800
+Preparing data for first sector, start address D800
+Writing data to track 00, sector 00, head 0
+Preparing data 7000-70FF
+Writing data to track 00, sector 01, head 0
+Preparing data 7100-71FF
+Writing data to track 00, sector 02, head 0
+Preparing data 7200-72FF
+Writing data to track 00, sector 03, head 0
+Preparing data 7300-73FF
+Writing data to track 00, sector 04, head 0
+Preparing data 7400-74FF
+Writing data to track 00, sector 05, head 0
+Preparing data 7500-75FF
+Writing data to track 00, sector 06, head 0
+Preparing data 7600-76FF
+Writing data to track 00, sector 07, head 0
+Preparing data 7700-77FF
+Writing data to track 00, sector 08, head 0
+Preparing data 7800-78FF
+Writing data to track 00, sector 09, head 0
+Preparing data 7900-79FF
+Writing data to track 00, sector 10, head 0
+Preparing data 7A00-7AFF
+Writing data to track 00, sector 11, head 0
+Preparing data 7B00-7BFF
+Writing data to track 00, sector 12, head 0
+Preparing data 7C00-7CFF
+Writing data to track 00, sector 13, head 0
+Preparing data 7D00-7DFF
+Writing data to track 00, sector 14, head 0
+Preparing data 7E00-7EFF
+Writing data to track 00, sector 15, head 0
+Preparing data 7F00-7FFF
+Writing data to track 00, sector 16, head 0
+Preparing data 8000-80FF
+Writing data to track 00, sector 17, head 0
+Preparing data 8100-81FF
+Writing data to track 00, sector 18, head 0
+Preparing data 8200-82FF
+Writing data to track 00, sector 19, head 0
+Preparing data 8300-83FF
+Writing data to track 00, sector 20, head 0
+Preparing data 8400-84FF
+Writing data to track 00, sector 21, head 0
+Preparing data 8500-85FF
+Writing data to track 00, sector 22, head 0
+
+
+
+
+**********************************************
+The ASM.COM utility program is used to convert an assembler text file containing Intel 8080 op-code mnemonics to an Intel hex format text file that contains the 8080 CPU machine code represented by the assembler text file. Most CPM programmers used the more powerful MAC.COM macro assembler to develop applications. The ASM.COM utility program came on the CPM distribution disk, the MAC.COM program was purchased separately. The ASM.COM utility program requires one file that contains the assembler source. The ASM.COM utility will create two files; the first file contains an Intel hex format output of the assembled CPU code, the second file contains a text listing of the assembler file with all CPU memory address and all assembler values resolved. The ASM.COM utility takes one parameter, the name of the text file that contains the assembler source code and has a file extension of ".ASM". The source file name can not contain wild-card characters nor can it contain a disk reference. The file extension of the source file name is used to pass three parameters. The first letter of the file extension is the disk identifier for the assembler source file. The second file extension letter is the disk identifier for the Intel hex file produced by the ASM.COM utility. The third letter in the file extension identifies the disk identifier for the listing file produced by the ASM.COM utility program.
+
+    > ASM TEST the source file TEST.ASM on the current disk is assembled and the output files TEST.HEX and TEST.PRN are written to the current disk in the current user area code. >ASM TEST.ABC the source file A:TEST.ASM is assembled and the output files B:TEST.HEX and C:TEST.PRN are created.
+
+There are two disk identifiers that are reserved by the ASM.COM utility the "X" and "Z" disk letters. The "X" disk identifier in the file extension is used to force the listing file to the current console device. The "Z" disk identifier in the file extension is used to suppress the the output of the hex file and the listing file.
+
+    > ASM TEST.AAZ the source file A:TEST.ASM is assembled. The hex file A:TEST.HEX is created. The listing file is not output. > ASM TEST.AZX the source file A:TEST.ASM is assembled. The hex format output file is not created. The listing file is output to the current console device.
+
+If an error is detected during the assembly process the ASM.COM utility program will display the current address followed by a single upper case character error code. The error will be display on the current console and listed in the ".PRN" listing file if it is created.
+
+ 
+
+ASM.COM error codes:
+
+    D - The operand is too large to store in the defined space.
+    E - A required operand was not provided or operand expression can not be resolved.
+    L - Duplicate label or no label allowed in statement.
+    N - Unsupported ASM.COM operation.
+    O - String too long or expression is to complex to resolve.
+    P - Second pass of assembler resolved a different value for a label or expression. Can be caused by duplicate labels or expression values that are not resolved before they are used.
+    S - Statement syntax error (ie. EQU with no label or value).
+    U - A label in an operand expression has not been defined prior to the current statement.
+    V - An operand value is out of range for its defined type.
+
+An assembler source file is composed of assembler text statements. An assembler statement is composed of one to five parts. Each statement part is separated by one or more spaces. The order of an assembler statements parts is fixed. Multiple assembler statements can be included in a single text line. Each assembler statement is separated by an exclamation mark character. Sequence Label Operation Operand ;Comment Sequence is a string of decimal characters terminated by one or more space characters.
+
+The assembler does not check for a valid number in this field. Label is a string of letters and decimal characters starting with a letter that is used as to represent the address of a statement or the assignment of a value. The dollar sign character can be used to separate a label string into more readable parts and will be ignored by the assembler. The first sixteen characters of a label are used the remaining characters are ignored. Mnemonic names and assembler directives are reserved and may not be used as labels. Operation a CPU mnemonic (OR, AND, DEC...) or an assembler directive (EQU, DS, DB...). Operand an assembler expression or a numeric value. In the case of the "DB" assembler directive can be a string of characters. A numeric value can be represented in Binary, Hexadecimal, Octal or Decimal by appending a character to the numeric string to define the values radix . By default as values default to decimal. Appending the appropriate character (B, H, O) to the value changes the radix for that value. Operand expressions evaluate to an unsigned sixteen bit number. Comment any string of printable characters except an exclamation mark character. A comment always starts with a semicolon character.
+
+ 
+
+The following table lists the ASM.COM assembler directives:
+Directive 	Description
+DB operands 	The values of the operands are assembled one byte for each comma separated value. An operand that is a character constant may contain up to sixty four characters. Each character will be assigned to the next byte of storage.
+DW operands 	The values of the operands are assembled one sixteen bit word for each comma separated value.
+DS operand 	The value of the operand is added to the current location counter to reserve space.
+EQU operand 	The value of the operand is evaluated and the required statement label is assigned the value of the operand.
+SET operand 	The value of the operand is evaluated and the required statement label is assigned the value of the operand. Unlike the "EQU" command the value may be updated in a latter assembler statement.
+ORG operand 	Sets the value of the current location counter. The operand's value is used as the next address to write.
+IF operand 	If the value of the operand evaluates to zero all statements until the next "ENDIF" directive are ignored.
+ENDIF 	The scope of the inner most "IF" directive is ended.
+END {operand} 	Indicates the end of the assembler source file. If the optional operand is specified its value is passed to the ".HEX" file as the program start address.
+
+ 
+
+Each of the 8080 CPU registers has a reserved label that can be used as a statement operand value; A, B, C, D, E. H. L, M, SP and PSW. The "$" can be used to represent the current assembly address in an operand expression. The following table lists supported numeric operators that can be used in statement operand expressions.
+Operation 	Description
++Y 	The value of Y.
+-Y 	The two's complement of the value of Y.
+X+Y 	Unsigned sum of X and Y.
+X-Y 	Unsigned difference of X and Y.
+X*Y 	Unsigned product of X and Y.
+X/Y 	Unsigned division of X and Y.
+X MOD Y 	Remainder of X/Y.
+NOT Y 	one's complement of Y.
+X AND Y 	Logical and of X and Y.
+X OR Y 	Logical or of X and Y.
+X XOR Y 	Logical exclusive or of X and Y.
+X SHL Y 	Logical shift left of X by Y bits.
+X SHR Y 	Logical shift right of X by Y bits.
+
+ 
