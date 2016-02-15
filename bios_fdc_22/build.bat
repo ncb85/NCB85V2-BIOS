@@ -5,7 +5,6 @@ set HOME=%CD%
 set PROJPATH=%HOME%
 set ASW_PATH=D:\Users\roman\hobby\hardware_projects\8085\asw\bin
 set SORT_PATH=D:\cygwin\bin
-set HEX2BIN_PATH=D:\Users\roman\hobby\hardware_projects\8085\ncb85\Utils
 
 set CYGWIN=nodosfilewarning
 
@@ -13,6 +12,7 @@ cd /D %ASW_PATH%
 
 REM FDTYPEs 360,720,120,144
 call:build 360
+call:build 120
 call:build 144
 goto:end
 
@@ -23,6 +23,7 @@ if ERRORLEVEL 1 goto:end
 
 p2hex %PROJPATH%\%FILENAME%.p %PROJPATH%\%FILENAME%_%FDTYPE%.ihx -k -r $-$1FFF -R 57344 -F Intel -i 0 > NUL
 %SORT_PATH%\sort -k1.8,1.9 -k1.4,1.7 %HOME%/%FILENAME%_%FDTYPE%.ihx > %HOME%/%FILENAME%_%FDTYPE%.hex
+del %HOME%\%FILENAME%_%FDTYPE%.ihx
 goto:eof
 
 :end

@@ -6,8 +6,6 @@
 ; that can be shadowed by outputting 1 to SOD pin of 8085
 ; BIOS is in the ROM and moved to target RAM after reset. CP/M is loaded from diskette drive
 ;------------------------------------------------------------------------------
-;DEBUG           equ     1               ; floppy driver debug on uart 2.2
-            
 		cpu	8085undoc
 
 jnk		macro	adr
@@ -21,7 +19,7 @@ jk		macro	adr
 ;------------------------------------------------------------------------------
 
 CPMVer		equ	22		; CP/M ver 2.2
-BIOSVer		equ	21		; BIOS ver 2.1
+BIOSVer		equ	22		; BIOS ver 2.2
 CRYSTAL		equ	12		; MHz
 
 CPMSource       equ     "ROM"           ; when defined - CP/M in ROM, otherwise
@@ -48,10 +46,12 @@ BIOSLengthMax	equ	1000h		; BIOS (Max) len
 CcpBdosSec	equ	(CCPLength+BDOSLength)/128 ; CCP + BDOS len in sectors
 ; be sure to include (or not include) correct cp/m image at the end of file
             if (CPMSource <> "ROM")
-BaseBIOS	equ	0EE00h		; BIOS address (with PMD32 driver, debug routines..)
+BaseBIOS	equ	0EE00h		; BIOS address (with PMD32 driver)
             else
                 if (Floppy == 360)
 BaseBIOS	equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x360
+                elseif (Floppy==120) 
+BaseBIOS	equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44
                 elseif (Floppy==144) 
 BaseBIOS	equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44
                 endif
@@ -75,14 +75,17 @@ ESC		equ	1Bh
 SPACE		equ	20h
 ;------------------------------------------------------------------------------
 ; IO ports
-PIO_PA		equ	10h
+PIO_PA		equ	10h             ; 8255
 PIO_PB		equ	11h
 PIO_PC		equ	12h
 PIO_CWR		equ	13h
 
-USART_DATA	equ	8
+USART_DATA	equ	8               ; 8251
 USART_CWR	equ	9
 USART_STAT	equ	9
+
+PCF8584_ADDR    equ     58h             ; I2C Controller
+MUART_ADDR      equ     60h             ; 8256
 
 ; paging ROM/RAM - values for SIM  instruction
 XROM		equ	40h
@@ -225,6 +228,37 @@ DPB4:           dw  72                  ; SPT - logical sectors per track
                 dw  0                   ; OFF - system tracks - no system track
             endif
 
+; Diskette 5,25" HD
+; 5.25" / 1.2MB(DOS) / 1.04MB(CP/M)
+; 80 tracks(two side), 32 (256 byte) sectors per track/side, 5120 sectors totally
+; 632 allocation 2kB blocks (first track reserved for system)
+; 256 dir size (4x16x4) - dir is saved in 4 allocation blocks
+; 1 system track
+            if (Floppy==120) && (CPMSource <> "ROM")
+DPB4:           dw 104                  ; SPT - logical sectors per track
+                db 4                    ; BSH - block shift
+                db 15                   ; BLM - block mask
+                db 0                    ; EXM - ext.mask
+                dw 512                  ; DSM - capacity-1
+                dw 255                  ; DRM - dir size-1
+                db 240                  ; AL0 - dir allocation mask
+                db 0                    ; AL1
+                dw 64                   ; CKS - checksum array size
+                dw 1                    ; OFF - system tracks 
+            endif
+            if (Floppy==120) && (CPMSource == "ROM")
+DPB4:           dw 104                  ; SPT - logical sectors per track
+                db 4                    ; BSH - block shift
+                db 15                   ; BLM - block mask
+                db 0                    ; EXM - ext.mask
+                dw 520                  ; DSM - capacity-1
+                dw 255                  ; DRM - dir size-1
+                db 240                  ; AL0 - dir allocation mask
+                db 0                    ; AL1
+                dw 64                   ; CKS - checksum array size
+                dw 0                    ; OFF - system tracks 
+            endif
+
 ; Diskette 3,5" HD
 ; 3.5" / 1.44MB(DOS) / 1.28MB(CP/M)
 ; 80 tracks(two side), 32 (256 byte) sectors per track/side, 5120 sectors totally
@@ -266,6 +300,8 @@ Signature:	db	ESC,"[0m"	; reset terminal attributes
 		db	", ",BaseBIOS/4096+'A'-10,(BaseBIOS#4096)/256+'0',"00-FFFF"
             if (Floppy==360)
 		db	", 2x 360kB 5.25\""
+            elseif (Floppy==120)
+		db	", 2x 1.2MB 5.25\""
             elseif (Floppy==144)
 		db	", 2x 1.44MB 3.5\""
             endif
@@ -288,9 +324,14 @@ ErrRetry:	db	" [R]etry [I]gnore Re[B]oot"
 		db	CR,LF,BEL,0
 
 		db	0		; 0=warm start, 1=cold start
-CCPCommand:	db	4,"cd *",0
+CCPCommand:
+		        if NumPmd32>0
+		db	4,"cd *",0
+				elseif
+		db	3,"DIR",0
+		;db	3,"ENV",0
+				endif
 CCPCommandLen:	equ	$ - CCPCommand
-
 ;------------------------------------------------------------------------------
 ; * CBOOT * Cold boot
 CBOOT:		di
@@ -351,6 +392,8 @@ WBoot2:		xra a
 
             if Floppy==360
                 call set_drv_type0      ;5.25" 360kB, 18x256byte sectors/track
+            elseif Floppy==120
+                call set_drv_type2      ;5.25" 1.2MB, 26x256byte sectors/track
             elseif Floppy==144
                 call set_drv_type3      ;3.5" 1.44MB, 32x256byte sectors/track
             endif
@@ -408,17 +451,18 @@ WBootEnd:	lxi	h,Buffer	; DMA address
 		lxi	h,CCPCommand-1	; cold/warm start ?
 		mov	a,m		; flag to A
 		mvi	m,0		; clear flag
-            if NumPmd32>0
 		ora	a		; warm start ?
 		jz	BaseCCP+3	; jump to CCP with empty edit buffer
+            if NumPmd32>0
 		inx	h		; move to beg of "CD *"
+            elseif
+		inx	h		; move to beg of "DIR"
+		;jmp     BaseCCP+3	; jump to CCP with empty edit buffer
+            endif
 		lxi	d,BaseCCP+7	; copy to edit buffer
 		lxi	b,CCPCommandLen
 		call	CopyBlock
 		jmp	BaseCCP		; jump to CCP
-            elseif
-		jmp     BaseCCP+3	; jump to CCP with empty edit buffer
-            endif
                 ;
 ;------------------------------------------------------------------------------
 CopyBlock:	mov	a,m
@@ -771,7 +815,30 @@ HardwareInit:
 		out	USART_CWR	; RxC a TxC = 307,2 kHz -> 19200 Bd
 		mvi	a,USART_CMD2	; RTS, DTR, Enable RX, TX
 		out	USART_CWR
-                ;
+                ; I2C Controller PCF8584
+                mvi     a,80h           ; RESET,  will also choose register S0_OWN i.e. next byte will be
+                out     PCF8584_ADDR+1  ; loaded into reg S0^ (own address reg); serial interface off.
+                mvi     a,55h           ; loads byte 55H into reg S0^ effective own address becomes AAH.
+                out     PCF8584_ADDR    ; pcf8584 shifts this value left one bit
+                mvi     a,0A0h          ; loads byte A0H into reg S1, i.e. next byte will
+                out     PCF8584_ADDR+1  ; be loaded into the clock control reg S2.
+                mvi     a,10h           ; loads byte 10H into reg S2;system clock is 4.43 MHz; SCL = 90 kHz
+                out     PCF8584_ADDR
+                mvi     a,0C1h          ; loads byte C1H into reg S1; reg enable serial interface
+                out     PCF8584_ADDR+1  ; next write or read operation will be to/from data transfer reg S0
+                ; 8256 MUART
+                mvi     a,01h           ; 8256 in 8085 mode, command1
+                out     MUART_ADDR
+                mvi     a,03h           ; PARITY | SYSTEM_CLK | BAUD_RATE_19, command2
+                out     MUART_ADDR+1
+                mvi     a,0C1h          ; SET_BIT | RXE | RST_BIT, command3
+                out     MUART_ADDR+2
+                mvi     a,0C0h          ; T35 | T24, P2C2=P2C1=P2C0=input, mode
+                out     MUART_ADDR+3
+                mvi     a,00h           ; port1, input
+                out     MUART_ADDR+4
+                mvi     a,0FFh          ; reset interrupts
+                out     MUART_ADDR+6
                 ; init PIO 8255
             if NumPmd32>0
 PioInit:	mvi	a,PIO_CMD
@@ -796,41 +863,6 @@ uart_init_16552:
                 out LINE_CTRL_REG_2
                 ret
                 ;
-                ; print char in C reg on UART2.2
-            ifdef DEBUG
-CONOUT2:        in      LINE_STATUS_REG_2   ; 16552
-		ani     20h
-		jz	CONOUT2         ; wait
-		mov	a,c		; char to A
-		out	TRANSMITTER_BUFFER_REG_2    ; send  
-		ret
-                ;
-                ;print hl in hex format
-hl_to_hex:      mov a,h
-                call tohexh
-                call CONOUT2            ;output
-                mov a,h
-                call tohexl
-                call CONOUT2            ;output
-l_to_buff:      mov a,l
-                call tohexh
-                call CONOUT2            ;output
-l2_to_buff:     mov a,l
-                call tohexl
-                call CONOUT2            ;output
-                ret
-tohexh:         rlc                     ;high 4-bits
-                rlc
-                rlc
-                rlc
-tohexl:         ani 0Fh                 ;low 4-bits
-                adi 30h                
-                cpi 3Ah                 ;9 is 0x39
-                jm nohex                ;0-9 ?
-                adi 07h                 ;no, it is A-F
-nohex:          mov c,a                 ;return in c
-                ret
-            endif
 
 ;------------------------------------------------------------------------------
 ; Variables in BIOS
@@ -891,6 +923,16 @@ CSV4            equ     ALV4 + 23       ; not allocated, only defined
 ALV5            equ     CSV4 + 16       ; not allocated, only defined
 CSV5            equ     ALV5 + 23       ; not allocated, only defined
                 message "END ADDRESS : \{CSV5+16}"    ;16 bytes for CSV5
+            elseif (Floppy==120)
+;ALV4:		ds	81		; disk E: allocation vector
+;CSV4:		ds	64		; disk E: directory checksum
+;ALV5:		ds	81		; disk F: allocation vector
+;CSV5:		ds	64		; disk F: directory checksum
+ALV4            equ     DIRBUF + 128    ; not allocated, only defined
+CSV4            equ     ALV4 + 66       ; not allocated, only defined
+ALV5            equ     CSV4 + 64       ; not allocated, only defined
+CSV5            equ     ALV5 + 66       ; not allocated, only defined
+                message "END ADDRESS : \{CSV5+64}"    ;64 bytes for CSV5
             elseif (Floppy==144)
 ;ALV4:		ds	81		; disk E: allocation vector
 ;CSV4:		ds	64		; disk E: directory checksum
@@ -900,7 +942,7 @@ ALV4            equ     DIRBUF + 128    ; not allocated, only defined
 CSV4            equ     ALV4 + 81       ; not allocated, only defined
 ALV5            equ     CSV4 + 64       ; not allocated, only defined
 CSV5            equ     ALV5 + 81       ; not allocated, only defined
-                message "END ADDRESS : \{CSV5+81}"    ;81 bytes for CSV5
+                message "END ADDRESS : \{CSV5+64}"    ;16 bytes for CSV5
             endif
         else        ; CCP/BDOS loaded from first track, buffers allocated
 DIRBUF:		ds	128		; dir buffer
@@ -909,6 +951,11 @@ ALV4:		ds	22		; disk E: allocation vector
 CSV4:		ds	16		; disk E: directory checksum
 ALV5:		ds	22		; disk F: allocation vector
 CSV5:		ds	16		; disk F: directory checksum
+            elseif (Floppy==120)
+ALV4:		ds	65		; disk E: allocation vector
+CSV4:		ds	64		; disk E: directory checksum
+ALV5:		ds	65		; disk F: allocation vector
+CSV5:		ds	64		; disk F: directory checksum
             elseif (Floppy==144)
 ALV4:		ds	80		; disk E: allocation vector
 CSV4:		ds	64		; disk E: directory checksum
@@ -930,11 +977,13 @@ CPMBIN:
             if (CPMSource <> "ROM")
                 message "DO NOT INCLUDE CP/M IMAGE"
             else
-			    if (Floppy==144)
+                if (Floppy==360)
+                    binclude "../CPM/cpmDF00.bin"
+                elseif (Floppy==120) 
                     binclude "../CPM/cpmDE00.bin"
-			    elseif (Floppy==360)
-	                binclude "../CPM/cpmDF00.bin"
-			endif
+                elseif (Floppy==144) 
+                    binclude "../CPM/cpmDE00.bin"
+                endif
                 message "../CPM/cpm\{BaseCCP}.bin DOUBLE CHECK binclude file!!!"
                 message "AND FIX!!! binclude(d) CPM image if NECESSARY!!!"
             endif
