@@ -12,6 +12,7 @@ cd /D %ASW_PATH%
 
 REM FDTYPEs 360,720,120,144
 call:build 360
+call:build 720
 call:build 120
 call:build 144
 goto:end

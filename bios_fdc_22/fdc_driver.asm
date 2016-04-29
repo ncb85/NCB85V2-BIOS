@@ -33,10 +33,10 @@ MODE_BYTE1      equ 86h                 ;mode2, no imp.seek, IBM, auto low pwr
 MODE_BYTE2      equ 00h                 ;FIFO enabled, few tracks
 
                 if FloppySpeed == "FAST"
-MODE_BYTE3      equ 0C1h                ;def.densel, 1x8ms head settle time
+MODE_BYTE3      equ 0C1h                ;default densel, 1x8ms head settle time
 SPECIFY_BYTE1   equ 0EAh                ;step rate 4ms, motor off 10s
                 elseif FloppySpeed == "MEDIUM"
-MODE_BYTE3      equ 0C2h                ;def.densel, 2x8ms head settle time
+MODE_BYTE3      equ 0C2h                ;default densel, 2x8ms head settle time
 SPECIFY_BYTE1   equ 0CAh                ;step rate 8ms, motor off 10s
                 endif
 
@@ -98,11 +98,12 @@ motor_1_state:  db 0                    ;motor on flag
 num_of_tracks:  db 0                    ;drive param
                 ;
                 ; table with drive type params(density,sectors,tracks,GAP,GAP3,densel)
-table_drv_typ0: db CNF_250, 18, 40, 0Ah, 0Ch, 0C2h
-table_drv_typ1: db CNF_250, 18, 80, 0Ah, 0Ch, 0C2h
-table_drv_typ2: db CNF_500, 26, 80, 0Eh, 36h, 0C2h
-table_drv_typ3: db CNF_500, 32, 80, 0Eh, 36h, 02h
-                ; set drive type (0-360kb, 1-720kb, 2-1.2M, 3-1.44M)
+table_drv_typ0: db CNF_250, 18, 40, 0Ah, 0Ch, 0C2h      ; 360kB 5.25" DD/40tracks standard drive
+table_drv_typ1: db CNF_250, 18, 80, 0Ah, 0Ch, 0C2h      ; 720kB 5.25" DD/80tracks special drive (TEAC FD-55F)
+table_drv_typ2: db CNF_500, 26, 80, 0Eh, 36h, 0C2h      ; 1.2MB 5.25" HD drive
+table_drv_typ3: db CNF_500, 32, 80, 0Eh, 36h, 02h       ; 1.44MB 3.5" HD drive
+table_drv_typ4: db CNF_300, 18, 80, 0Ah, 0Ch, 0C2h      ; 720kB 5.25" HD drive
+                ; set drive type (0-360kb, 1-720kb, 2-1.2M, 3-1.44M, 4-720kB in HD drive)
 set_drv_type0:  lxi h, table_drv_typ0
 set_drv_type:   mov a,m
                 sta ccr_dsr_value       ;data rate
@@ -130,6 +131,8 @@ set_drv_type1:  lxi h, table_drv_typ1
 set_drv_type2:  lxi h, table_drv_typ2
                 jmp set_drv_type
 set_drv_type3:  lxi h, table_drv_typ3
+                jmp set_drv_type
+set_drv_type4:  lxi h, table_drv_typ4
                 jmp set_drv_type
                 ;
                 ; long delay, cca 3ms
@@ -211,20 +214,6 @@ motor_do:       push h                  ;back up
                 ori 04h                 ;do not reset FDC :-)
                 out REG_DOR             ;set FDC register
                 in REG_MSR              ;hmm just needed
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"g"
-        call CONOUT2
-        in REG_DOR
-        mov l,a
-        call l_to_buff
-        in REG_MSR
-        mov l,a
-        call l_to_buff
-        pop b
-        pop h
-        endif
                 pop b                   ;restore
                 pop h                   ;restore
                 ret
@@ -439,16 +428,6 @@ eval_status:    ;lda status_reg_0        ;process Status 0
 .l1             ;mov a,b
                 ani 37h
                 jz eval_st2
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"e"
-        call CONOUT2
-        mvi c,"1"
-        call CONOUT2
-        pop b
-        pop h
-        endif
                 stc
                 ret
                 ;ani 20h                 ;CRC error
@@ -484,16 +463,6 @@ eval_st2:       lda status_reg_2        ;process Status 2
                 mov b,a
                 ani 73h
                 jz read_stok
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"e"
-        call CONOUT2
-        mvi c,"2"
-        call CONOUT2
-        pop b
-        pop h
-        endif
                 stc
                 ret
                 ;ani 12h                 ;wrong track detected
@@ -520,14 +489,6 @@ eval_st2:       lda status_reg_2        ;process Status 2
                 ;stc
                 ;ret
 read_stok:      ;lxi h,RESULT_OK         ;all OK
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"."
-        call CONOUT2
-        pop b
-        pop h
-        endif
                 stc
                 cmc
                 ret
@@ -565,28 +526,7 @@ fd_cmd_l1:      call busy_check
 fd_cmd_err:     jmp read_status         ;jump and return to caller from there
                 ;
                 ; write one sector to diskette
-fd_write:       
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"w"
-        call CONOUT2
-        lda drive_nr
-        mov l,a
-        call l_to_buff
-        lda track_nr
-        mov l,a
-        call l_to_buff
-        lda head_nr
-        mov l,a
-        call l_to_buff
-        lda sector_nr
-        mov l,a
-        call l_to_buff
-        pop b
-        pop h
-        endif
-                mvi a, CMD_WRITE        ;command phase
+fd_write:       mvi a, CMD_WRITE        ;command phase
                 call write_byte
                 call send_head_drv      ;send head << 2 | drive byte
                 call fd_cmd_pha         ;send 7 param bytes
@@ -624,28 +564,7 @@ fd_write_l1:    in REG_MSR
                 ret
                 ;
                 ; read one sector from diskette
-fd_read:        
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"r"
-        call CONOUT2
-        lda drive_nr
-        mov l,a
-        call l_to_buff
-        lda track_nr
-        mov l,a
-        call l_to_buff
-        lda head_nr
-        mov l,a
-        call l_to_buff
-        lda sector_nr
-        mov l,a
-        call l_to_buff
-        pop b
-        pop h
-        endif
-                mvi a, CMD_READ         ;command phase
+fd_read:        mvi a, CMD_READ         ;command phase
                 call write_byte
                 call send_head_drv      ;send head << 2 | drive byte
                 call fd_cmd_pha         ;send 7 param bytes
@@ -680,29 +599,9 @@ fd_read_l1:     in REG_MSR
                 sta fdc_extraloop
                 jnz fd_read_outlo
                 ;lxi h,TIMEOUT_WATING    ;timeout
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"t"
-        call CONOUT2
-        mvi c,"o"
-        call CONOUT2
-        pop b
-        pop h
-        endif
                 stc
                 ret
 fd_cmd_abort:   ;lxi h,CMD_ABORT
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"a"
-        call CONOUT2
-        mvi c,"b"
-        call CONOUT2
-        pop b
-        pop h
-        endif
                 stc
                 ret
                 ;
@@ -817,28 +716,7 @@ fd_exec_cmd:    push psw
                 ret
                 ;
                 ; start motor (if not already started), disable interrupt from timer
-fd_motor_on:    
-
-        ifdef DEBUG
-        push h
-        push b
-        mvi c,"m"
-        call CONOUT2
-        lda drive_nr
-        mov l,a
-        call l_to_buff
-        lda motor_0_state
-        mov l,a
-        call l_to_buff
-        lda motor_1_state
-        mov l,a
-        call l_to_buff
-        pop b
-        pop h
-        endif
-
-
-                lda drive_nr            ;which drive?
+fd_motor_on:    lda drive_nr            ;which drive?
                 cpi 1                   ;drive 1?
                 jz .l1                  ;yes jump
                 lda motor_0_state       ;get motor 0 state

@@ -27,6 +27,7 @@ CPMSource       equ     "ROM"           ; when defined - CP/M in ROM, otherwise
 ; step rate, head settle time
 FloppySpeed     equ     "FAST"          ;for TEAC drives
 ;FloppySpeed     equ     "MEDIUM"        ;slower drives MITSUMI?
+;FloppySpeed     equ     "SLOW"          ;slower drives 720k TEAC FD-55F
 ; drive capacity
 ;Floppy          equ     360             ; drive type - 360kB/5.25"
 ;Floppy          equ     720             ; drive type - 720kB/5.25"
@@ -50,6 +51,8 @@ BaseBIOS	equ	0EE00h		; BIOS address (with PMD32 driver)
             else
                 if (Floppy == 360)
 BaseBIOS	equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x360
+                elseif (Floppy==720) 
+BaseBIOS	equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44
                 elseif (Floppy==120) 
 BaseBIOS	equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44
                 elseif (Floppy==144) 
@@ -172,7 +175,7 @@ DPH1:		dw	0,0		; no translation table
             endif
 DPH4:		dw	0,0		; no translation table
 		dw	0,0
-		dw	DIRBUF,DPB4	; buff.adr., disk param adr.
+		dw	DIRBUF,DPB4     ; buff.adr., disk param adr.
 		dw	CSV4,ALV4	; checksum zone adr., aloc bit map adr.
 DPH5:		dw	0,0		; no translation table
 		dw	0,0
@@ -200,7 +203,7 @@ DPB:            dw 64                   ; SPT - logical sectors per track
 
 ; Diskette 5,25" DD, 360kB(DOS and CP/M)
 ; 40 tracks(two side), 18 (256 byte) sectors per track/side, 1440 sectors totally
-; 175 allocation 2kB blocks (first track reserved for system)
+; 180(175) allocation 2kB blocks (first track reserved for system)
 ; 64 dir size (1x16x4) - dir is saved in 1 allocation blocks
 ; 1 system track
             if (Floppy==360) && (CPMSource <> "ROM")
@@ -228,10 +231,40 @@ DPB4:           dw  72                  ; SPT - logical sectors per track
                 dw  0                   ; OFF - system tracks - no system track
             endif
 
+; Diskette 5,25" DD, 720kB(DOS and CP/M)
+; 80 tracks(two side), 18 (256 byte) sectors per track/side, 2880 sectors totally
+; 360(350) allocation 2kB blocks (first track reserved for system)
+; 64 dir size (1x16x4) - dir is saved in 1 allocation blocks
+; 1 system track
+            if (Floppy==720) && (CPMSource <> "ROM")
+DPB4:           dw  72                  ; SPT - logical sectors per track
+                db  4                   ; BSH - posun bloku
+                db  15                  ; BLM - block mask
+                db  0                   ; EXM - ext.mask, 16kB per extent
+                dw  349                 ; DSM - capacity-1
+                dw  63                  ; DRM - dir size-1
+                db  128                 ; AL0 - dir allocation mask
+                db  0                   ; AL1
+                dw  16                  ; CKS - checksum array size
+                dw  1                   ; OFF - system tracks
+            endif
+            if (Floppy==720) && (CPMSource == "ROM")
+DPB4:           dw  72                  ; SPT - logical sectors per track
+                db  4                   ; BSH - posun bloku
+                db  15                  ; BLM - block mask
+                db  0                   ; EXM - ext.mask, 16kB per extent
+                dw  359                 ; DSM - capacity-1 - full 720kB
+                dw  63                  ; DRM - dir size-1
+                db  128                 ; AL0 - dir allocation mask
+                db  0                   ; AL1
+                dw  16                  ; CKS - checksum array size
+                dw  0                   ; OFF - system tracks - no system track
+            endif
+
 ; Diskette 5,25" HD
 ; 5.25" / 1.2MB(DOS) / 1.04MB(CP/M)
-; 80 tracks(two side), 32 (256 byte) sectors per track/side, 5120 sectors totally
-; 632 allocation 2kB blocks (first track reserved for system)
+; 80 tracks(two side), 26 (256 byte) sectors per track/side, 4160 sectors totally
+; 520(513) allocation 2kB blocks (first track reserved for system)
 ; 256 dir size (4x16x4) - dir is saved in 4 allocation blocks
 ; 1 system track
             if (Floppy==120) && (CPMSource <> "ROM")
@@ -251,18 +284,18 @@ DPB4:           dw 104                  ; SPT - logical sectors per track
                 db 4                    ; BSH - block shift
                 db 15                   ; BLM - block mask
                 db 0                    ; EXM - ext.mask
-                dw 520                  ; DSM - capacity-1
-                dw 255                  ; DRM - dir size-1
-                db 240                  ; AL0 - dir allocation mask
+                dw 519                  ; DSM - capacity-1
+                dw 127                  ; DRM - dir size-1
+                db 192                  ; AL0 - dir allocation mask
                 db 0                    ; AL1
-                dw 64                   ; CKS - checksum array size
+                dw 32                   ; CKS - checksum array size
                 dw 0                    ; OFF - system tracks 
             endif
 
 ; Diskette 3,5" HD
 ; 3.5" / 1.44MB(DOS) / 1.28MB(CP/M)
 ; 80 tracks(two side), 32 (256 byte) sectors per track/side, 5120 sectors totally
-; 632 allocation 2kB blocks (first track reserved for system)
+; 640(632) allocation 2kB blocks (first track reserved for system)
 ; 256 dir size (4x16x4) - dir is saved in 4 allocation blocks
 ; 1 system track
             if (Floppy==144) && (CPMSource <> "ROM")
@@ -300,6 +333,8 @@ Signature:	db	ESC,"[0m"	; reset terminal attributes
 		db	", ",BaseBIOS/4096+'A'-10,(BaseBIOS#4096)/256+'0',"00-FFFF"
             if (Floppy==360)
 		db	", 2x 360kB 5.25\""
+            elseif (Floppy==720)
+		db	", 2x 720kB 5.25\""
             elseif (Floppy==120)
 		db	", 2x 1.2MB 5.25\""
             elseif (Floppy==144)
@@ -392,6 +427,9 @@ WBoot2:		xra a
 
             if Floppy==360
                 call set_drv_type0      ;5.25" 360kB, 18x256byte sectors/track
+            elseif Floppy==720
+                ;call set_drv_type1      ;5.25" 720kB, in DD drive, 18x256byte sectors/track/80tracks, 300rpm
+                call set_drv_type4      ;5.25" 720kB, in HD drive, 18x256byte sectors/track/80tracks, 360rpm
             elseif Floppy==120
                 call set_drv_type2      ;5.25" 1.2MB, 26x256byte sectors/track
             elseif Floppy==144
@@ -846,7 +884,7 @@ PioInit:	mvi	a,PIO_CMD
             endif
 		;
 uart_init_16552:
-                mvi a, 0C7h              ;06-no FIFO, 07-enable FIFO, bits 6,7 - fifo trigger
+                mvi a, 0C6h              ;06-no FIFO, 07-enable FIFO, bits 6,7 - fifo trigger
                 out FIFO_CTRL_REG_1
                 out FIFO_CTRL_REG_2
                 mvi a, 83h
@@ -886,7 +924,7 @@ UsartByte	ds	1		; received byte from USART
 
 ;------------------------------------------------------------------------------
 ; choose one of the implementations of serial routinnes
-                ; 8251 uart pulling mode, no special char decode
+                ; 8251 uart polling mode, no special char decode
                 ;include "serial_mini.asm"
                 ;
                 ; 8251 uart, interrupt mode, with special char decoding
@@ -923,6 +961,16 @@ CSV4            equ     ALV4 + 23       ; not allocated, only defined
 ALV5            equ     CSV4 + 16       ; not allocated, only defined
 CSV5            equ     ALV5 + 23       ; not allocated, only defined
                 message "END ADDRESS : \{CSV5+16}"    ;16 bytes for CSV5
+            elseif (Floppy==720)
+;ALV4:		ds	81		; disk E: allocation vector
+;CSV4:		ds	64		; disk E: directory checksum
+;ALV5:		ds	81		; disk F: allocation vector
+;CSV5:		ds	64		; disk F: directory checksum
+ALV4            equ     DIRBUF + 128    ; not allocated, only defined
+CSV4            equ     ALV4 + 46       ; not allocated, only defined
+ALV5            equ     CSV4 + 16       ; not allocated, only defined
+CSV5            equ     ALV5 + 46       ; not allocated, only defined
+                message "END ADDRESS : \{CSV5+16}"    ;16 bytes for CSV5
             elseif (Floppy==120)
 ;ALV4:		ds	81		; disk E: allocation vector
 ;CSV4:		ds	64		; disk E: directory checksum
@@ -930,9 +978,9 @@ CSV5            equ     ALV5 + 23       ; not allocated, only defined
 ;CSV5:		ds	64		; disk F: directory checksum
 ALV4            equ     DIRBUF + 128    ; not allocated, only defined
 CSV4            equ     ALV4 + 66       ; not allocated, only defined
-ALV5            equ     CSV4 + 64       ; not allocated, only defined
+ALV5            equ     CSV4 + 32 ;64       ; not allocated, only defined
 CSV5            equ     ALV5 + 66       ; not allocated, only defined
-                message "END ADDRESS : \{CSV5+64}"    ;64 bytes for CSV5
+                message "END ADDRESS : \{CSV5+32}" ;64}"    ;64 bytes for CSV5
             elseif (Floppy==144)
 ;ALV4:		ds	81		; disk E: allocation vector
 ;CSV4:		ds	64		; disk E: directory checksum
@@ -951,11 +999,16 @@ ALV4:		ds	22		; disk E: allocation vector
 CSV4:		ds	16		; disk E: directory checksum
 ALV5:		ds	22		; disk F: allocation vector
 CSV5:		ds	16		; disk F: directory checksum
+            elseif (Floppy==720)
+ALV4:		ds	46		; disk E: allocation vector
+CSV4:		ds	16		; disk E: directory checksum
+ALV5:		ds	46		; disk F: allocation vector
+CSV5:		ds	16		; disk F: directory checksum
             elseif (Floppy==120)
 ALV4:		ds	65		; disk E: allocation vector
-CSV4:		ds	64		; disk E: directory checksum
+CSV4:		ds	32 ;64		; disk E: directory checksum
 ALV5:		ds	65		; disk F: allocation vector
-CSV5:		ds	64		; disk F: directory checksum
+CSV5:		ds	32 ;64		; disk F: directory checksum
             elseif (Floppy==144)
 ALV4:		ds	80		; disk E: allocation vector
 CSV4:		ds	64		; disk E: directory checksum
@@ -979,6 +1032,8 @@ CPMBIN:
             else
                 if (Floppy==360)
                     binclude "../CPM/cpmDF00.bin"
+                elseif (Floppy==720) 
+                    binclude "../CPM/cpmDE00.bin"
                 elseif (Floppy==120) 
                     binclude "../CPM/cpmDE00.bin"
                 elseif (Floppy==144) 
