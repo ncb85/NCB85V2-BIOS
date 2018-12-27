@@ -54,9 +54,9 @@ BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 
 				endif
 			elseif (Floppy==144) 
 				if (Extra==0)
-BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 1x 1.2MB
+BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44MB
 				else
-BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 500kB 8"(or just 2 drives)
+BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44MB + 500kB 8"(or 3 1.44MB drives)
 				endif
 			elseif (Floppy==100) 
 BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.0MB, IBM floppy
