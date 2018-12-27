@@ -16,15 +16,21 @@ REM call:build 360
 REM call:build 720
 REM call:build 120
 REM call:build 120 50
+REM call:build 120 120
 call:build 144
 REM call:build 144 50
+REM call:build 144 144
 REM call:build 100
 goto:end
 
 :build
 set FDTYPE=%~1
 set PARAM2=%~2
-asw -cpu 8080 -L -OLIST %PROJPATH%\%FILENAME%_%FDTYPE%%PARAM2%.lst -D Floppy=%FDTYPE%,Extra=%PARAM2% -i %PROJPATH% %PROJPATH%\%FILENAME%.asm
+set EXTRA="0"
+IF NOT "%PARAM2%"=="" (
+	SET EXTRA=%PARAM2%
+)
+asw -cpu 8080 -L -OLIST %PROJPATH%\%FILENAME%_%FDTYPE%%PARAM2%.lst -D Floppy=%FDTYPE%,Extra=%EXTRA% -i %PROJPATH% %PROJPATH%\%FILENAME%.asm
 if ERRORLEVEL 1 goto:end
 
 p2hex %PROJPATH%\%FILENAME%.p %PROJPATH%\%FILENAME%_%FDTYPE%%PARAM2%.ihx -k -r $-$1FFF -R 57344 -F Intel -i 0 > NUL

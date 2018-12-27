@@ -102,9 +102,6 @@ table_drv_typ:	db CNF_250,18,40,0Ah,0Ch,MODE_BYTE3		; 360kB 5.25" DD/40tracks st
 		message	"drive type: 2x 720kB 5.25\""
 ;table_drv_typ:	 db CNF_250, 18, 80, 0Ah, 0Ch, 0C2h		 ; 720kB 5.25" DD/80tracks special drive (TEAC FD-55F)
 table_drv_typ:	db CNF_300,18,80,0Ah,0Ch,MODE_BYTE3		; 720kB 5.25" HD drive, 360rpm
-			elseif (Extra==50)
-		message	"drive type: 2x 1.2MB 5.25\" + 1x 500kB 8\""
-table_drv_typ:	db CNF_500,26,80,0Eh,36h,MODE_BYTE3		; 1.2MB 5.25" HD drive, 8" SS/DD drive
 			elseif (Floppy==120)
 		message	"drive type: 2x 1.2MB 5.25\""
 table_drv_typ:	db CNF_500,26,80,0Eh,36h,MODE_BYTE3		; 1.2MB 5.25" HD drive
@@ -114,6 +111,13 @@ table_drv_typ:	db CNF_500,32,80,0Eh,36h,02h			; 1.44MB 3.5" HD drive
 			elseif (Floppy==100)
 		message	"drive type: 2x 1.0MB 8\" IBM"
 table_drv_typ:	db CNF_500,26,77,0Ah,0Ch,0C2h			; 500(SS)/1MB(DS) 8" DD drive
+			endif
+			if (Extra==50)
+		message	" + 1x 500kB 8\""
+			elseif (Extra==120)
+		message	" + 1x 1.2MB 5.25\""
+			elseif (Extra==144)
+		message	" + 1x 1.44MB 3.5\""
 			endif
 				; set drive type
 set_drv_type:	lxi h, table_drv_typ

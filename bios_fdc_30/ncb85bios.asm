@@ -31,10 +31,10 @@ FloppySpeed		equ		"MEDIUM"		;slower drives MITSUMI?
 				message "Floppy type not defined!!!!!!"
 			endif
 ; drives used
-			if (Extra==50)
-NumFlps			equ		3				; number of floppy drives
-			else
+			if (Extra==0)
 NumFlps			equ		2				; number of floppy drives
+			else
+NumFlps			equ		3				; number of floppy drives
 			endif
 
 CCPLength	equ	0800h		; CCP len
@@ -46,12 +46,18 @@ CcpBdosSec	equ	(CCPLength+BDOSLength)/128 ; CCP + BDOS len in sectors
 BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x360k
 			elseif (Floppy==720) 
 BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x720k
-			elseif (Extra==50) 
-BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 500kB 8"
-			elseif (Floppy==120) 
-BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB
+			elseif (Floppy==120)
+				if (Extra==120)
+BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 1x 1.2MB
+				else
+BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 500kB 8"(or just 2 drives)
+				endif
 			elseif (Floppy==144) 
-BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.44MB
+				if (Extra==0)
+BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 1x 1.2MB
+				else
+BaseBIOS		equ	0F400h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.2MB + 500kB 8"(or just 2 drives)
+				endif
 			elseif (Floppy==100) 
 BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x1.0MB, IBM floppy
 			endif
@@ -140,6 +146,19 @@ Signature:		db	ESC,"[0m"	; reset terminal attributes
 				db	", BIOS v"
 				db	BIOSVer/10+'0','.',BIOSVer#10+'0'
 				db	", ",BaseBIOS/4096+'A'-10,(BaseBIOS#4096)/256+'0',"00-FFFF"
+		if ((NumFlps==3) && (Extra==Floppy))
+			if (Floppy==360)
+				db	", 3x 360kB 5.25\""
+			elseif (Floppy==720)
+				db	", 3x 720kB 5.25\""
+			elseif (Floppy==120)
+				db	", 3x 1.2MB 5.25\""
+			elseif (Floppy==144)
+				db	", 3x 1.44MB 3.5\""
+			elseif (Floppy==100)
+				db	", 3x 1.0MB 8\" IBM"
+			endif
+		elseif
 			if (Floppy==360)
 				db	", 2x 360kB 5.25\""
 			elseif (Floppy==720)
@@ -153,9 +172,14 @@ Signature:		db	ESC,"[0m"	; reset terminal attributes
 			endif
 			if (Extra==50)
 				db	" + 1x 500kB 8\""
+			elseif (Extra==120)
+				db	" + 1x 1.2MB 5.25\""
+			elseif (Extra==144)
+				db	" + 1x 1.44MB 3.5\""
 			endif
+		endif
 				db	CR,LF
-				db	"RomBor, Archeocomp 07/2014, 09/2017"
+				db	"RomBor, Archeocomp 07/2014, 12/2018"
 TCRLF:			db	CR,LF,0
 
 ErrBoot:		db	"BOOT Error!"

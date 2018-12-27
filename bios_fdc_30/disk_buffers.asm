@@ -35,7 +35,14 @@ CSV0:		ds	32		; disk A: directory checksum
 ALV1:		ds	63		; disk B: allocation vector
 CSV1:		ds	32		; disk B: directory checksum
         endif
+
         if (Extra==50)	; extra drive C: 1x 500kB 8"
 ALV2:		ds	32		; disk C: allocation vector
 CSV2:		ds	16		; disk C: directory checksum
+        elseif (Extra==120)
+ALV2:		ds	65		; disk A: allocation vector
+CSV2:		ds	32		; disk A: directory checksum
+        elseif (Extra==144)
+ALV2:		ds	80		; disk A: allocation vector
+CSV2:		ds	64		; disk A: directory checksum
         endif

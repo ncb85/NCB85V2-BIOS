@@ -27,19 +27,25 @@ DPH:
 				dw	0,0
 				dw	DIRBUF,DPB0			; buff.adr., disk param adr.
 				dw	CSV1,ALV1			; checksum zone adr., alloc.bit map adr.
-			if (NumFlps==3)
+		if (NumFlps==3)
 				dw	0,0					; no translation table
 				dw	0,0
+			if (Extra==Floppy)
+				dw	DIRBUF,DPB0			; buff.adr., disk param adr.
+			else
 				dw	DIRBUF,DPB2			; buff.adr., disk param adr.
-				dw	CSV2,ALV2			; checksum zone adr., alloc.bit map adr.
 			endif
+				dw	CSV2,ALV2			; checksum zone adr., alloc.bit map adr.
+		endif
+;
+DPB0:
 ; Diskette 5,25" DD, 360kB(DOS and CP/M)
 ; 40 tracks(two side), 18 (256 byte) sectors per track/side, 1440 sectors totally
 ; 180(175) allocation 2kB blocks (first track reserved for system)
 ; 64 dir size (1x16x4) - dir is saved in 1 allocation blocks
 ; 0 system track
 			if (Floppy==360)
-DPB0:			dw	72					; SPT - logical sectors per track
+				dw	72					; SPT - logical sectors per track
 				db	4					; BSH - posun bloku
 				db	15					; BLM - block mask
 				db	1					; EXM - ext.mask, 32kB per extent
@@ -57,7 +63,7 @@ DPB0:			dw	72					; SPT - logical sectors per track
 ; 64 dir size (1x16x4) - dir is saved in 1 allocation blocks
 ; 0 system track
 			if (Floppy==720)
-DPB0:			dw	72					; SPT - logical sectors per track
+				dw	72					; SPT - logical sectors per track
 				db	4					; BSH - posun bloku
 				db	15					; BLM - block mask
 				db	0					; EXM - ext.mask, 16kB per extent
@@ -76,7 +82,7 @@ DPB0:			dw	72					; SPT - logical sectors per track
 ; 128 dir size (2x16x4) - dir is saved in 2 allocation blocks (16log.secs per block, 4dir entries per sec.)
 ; 0 system track(s)
 			if (Floppy==120)
-DPB0:			dw 104					; SPT - logical sectors per track
+				dw 104					; SPT - logical sectors per track
 				db 4					; BSH - block shift
 				db 15					; BLM - block mask
 				db 0					; EXM - ext.mask
@@ -94,7 +100,7 @@ DPB0:			dw 104					; SPT - logical sectors per track
 ; 256 dir size (4x16x4) - dir is saved in 4 allocation blocks
 ; 0 system track
 			if (Floppy==144)
-DPB0:			dw 128					; SPT - logical sectors per track
+				dw 128					; SPT - logical sectors per track
 				db 4					; BSH - block shift
 				db 15					; BLM - block mask
 				db 0					; EXM - ext.mask
@@ -111,7 +117,7 @@ DPB0:			dw 128					; SPT - logical sectors per track
 ; 128 dir size (2x16x4) - dir is saved in 2 allocation blocks
 ; 0 system track
 			if (Floppy==100)
-DPB0:			dw 104					; SPT - logical sectors per track
+				dw 104					; SPT - logical sectors per track
 				db 4					; BSH - block shift
 				db 15					; BLM - block mask
 				db 0					; EXM - ext.mask
@@ -129,8 +135,10 @@ DPB0:			dw 104					; SPT - logical sectors per track
 ; 0 system track
 ; QUICK and DIRTY hack - make it pretend it is double sided to avoid blocking/deblocking bug
 ; virtual track sector -> trck = (track*2 + sector%26), sec = (sector % 26)
+DPB2:
+		if (Extra<>Floppy)
 			if (Extra==50)
-DPB2:			dw 52					; SPT - logical sectors per track
+				dw 52					; SPT - logical sectors per track
 				db 4					; BSH - block shift
 				db 15					; BLM - block mask
 				db 1					; EXM - ext.mask
@@ -140,4 +148,27 @@ DPB2:			dw 52					; SPT - logical sectors per track
 				db 0					; AL1
 				dw 16					; CKS - checksum array size
 				dw 0					; OFF - system tracks 
+			elseif (Extra==120)
+				dw 104					; SPT - logical sectors per track
+				db 4					; BSH - block shift
+				db 15					; BLM - block mask
+				db 0					; EXM - ext.mask
+				dw 519					; DSM - capacity-1
+				dw 127					; DRM - dir size-1
+				db 192					; AL0 - dir allocation mask
+				db 0					; AL1
+				dw 32					; CKS - checksum array size
+				dw 0					; OFF - system tracks 
+			elseif (Extra==144)
+				dw 128					; SPT - logical sectors per track
+				db 4					; BSH - block shift
+				db 15					; BLM - block mask
+				db 0					; EXM - ext.mask
+				dw 639					; DSM - capacity-1
+				dw 255					; DRM - dir size-1
+				db 240					; AL0 - dir allocation mask
+				db 0					; AL1
+				dw 64					; CKS - checksum array size
+				dw 0					; OFF - system tracks 
 			endif
+		endif
