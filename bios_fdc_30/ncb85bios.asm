@@ -37,11 +37,11 @@ NumFlps			equ		2				; number of floppy drives
 NumFlps			equ		3				; number of floppy drives
 			endif
 
-CCPLength	equ	0800h		; CCP len
-BDOSLength	equ	0E00h		; BDOS len
+CCPLength	equ	0800h			; CCP len
+BDOSLength	equ	0E00h			; BDOS len
 BIOSLengthMax	equ	1000h		; BIOS (Max) len
 CcpBdosSec	equ	(CCPLength+BDOSLength)/128 ; CCP + BDOS len in sectors
-; be sure to include (or not include) correct cp/m image at the end of file
+; be sure to include correct cp/m image at the end of file
 			if (Floppy == 360)
 BaseBIOS		equ	0F500h		; BIOS address (with CPM bundled in 8k ROM) for 2x360k
 			elseif (Floppy==720) 
@@ -113,7 +113,7 @@ RECEIVER_BUFFER_REG_1	 equ	28h
 LINE_STATUS_REG_2		 equ	25h
 TRANSMITTER_BUFFER_REG_2 equ	20h
 ;------------------------------------------------------------------------------
-			org	0
+				org	0
 Boot:
 				include "rom_loader.asm"
 ;------------------------------------------------------------------------------
@@ -574,7 +574,7 @@ Stack			equ		$
 ;------------------------------------------------------------------------------
 ; choose one of the implementations of blocking algorithm
 				;include "blocking_dri.asm"
-				; with dri uncomment also lines 191,192
+				; with dri uncomment also 2 lines following comment 'DRI blocking alg.' in CBOOT
 				;
 				include "blocking_chuck.asm"
 ;------------------------------------------------------------------------------

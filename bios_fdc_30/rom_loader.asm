@@ -4,7 +4,7 @@
 ;------------------------------------------------------------------------------
 ;				 
 		di								;disable all interrupts
-		lxi	sp,8000h					;stack to 8000
+		lxi	sp,8010h					;stack to 8010
 										;source, destination, length
 		lxi	h,QBaseBIOS					;eprom address
 		lxi	d,BaseBIOS					;copy BIOS to RAM top
